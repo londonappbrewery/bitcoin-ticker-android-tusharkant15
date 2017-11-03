@@ -12,12 +12,19 @@ import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.Toast;
 
 
+import com.loopj.android.http.AsyncHttpClient;
+import com.loopj.android.http.JsonHttpResponseHandler;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import cz.msebera.android.httpclient.Header;
+import cz.msebera.android.httpclient.HeaderElement;
+import cz.msebera.android.httpclient.ParseException;
 
 
 public class MainActivity extends AppCompatActivity {
+    private static final String LOG_TAG = MainActivity.class.getName();
 
     // Constants:
     // TODO: Create the base URL
@@ -25,6 +32,7 @@ public class MainActivity extends AppCompatActivity {
 
     // Member Variables:
     TextView mPriceTextView;
+    private String currency;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,35 +52,59 @@ public class MainActivity extends AppCompatActivity {
         // Apply the adapter to the spinner
         spinner.setAdapter(adapter);
 
+        setCurrency(0);
+
         // TODO: Set an OnItemSelected listener on the spinner
+        spinner.setOnItemSelectedListener(new OnItemSelectedListener() {
+
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                setCurrency(position);
+                letsDoSomeNetworking();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+
+            }
+        });
 
     }
 
+    private void setCurrency (int position) {
+        currency = getResources().getStringArray(R.array.currency_array)[position];
+    }
+
     // TODO: complete the letsDoSomeNetworking() method
-    private void letsDoSomeNetworking(String url) {
+    private void letsDoSomeNetworking() {
+        String url = "https://apiv2.bitcoinaverage.com/indices/global/ticker/all?crypto=BTC&fiat=" + currency;
 
-//        AsyncHttpClient client = new AsyncHttpClient();
-//        client.get(WEATHER_URL, params, new JsonHttpResponseHandler() {
-//
-//            @Override
-//            public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
-//                // called when response HTTP status is "200 OK"
-//                Log.d("Clima", "JSON: " + response.toString());
-//                WeatherDataModel weatherData = WeatherDataModel.fromJson(response);
-//                updateUI(weatherData);
-//            }
-//
-//            @Override
-//            public void onFailure(int statusCode, Header[] headers, Throwable e, JSONObject response) {
-//                // called when response HTTP status is "4XX" (eg. 401, 403, 404)
-//                Log.d("Clima", "Request fail! Status code: " + statusCode);
-//                Log.d("Clima", "Fail response: " + response);
-//                Log.e("ERROR", e.toString());
-//                Toast.makeText(WeatherController.this, "Request Failed", Toast.LENGTH_SHORT).show();
-//            }
-//        });
+        AsyncHttpClient client = new AsyncHttpClient();
+        client.addHeader("X-testing", "testing");
+        mPriceTextView.setText("Loading...");
+        client.get(url, null, new JsonHttpResponseHandler() {
+
+            @Override
+            public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
+                try {
+                    BitcoinModel bitcoinModel = BitcoinModel.fromJson(response, currency);
+                    updateUI(bitcoinModel);
+                } catch (JSONException e) {
+                    Toast.makeText(MainActivity.this, "Unable to parse response", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(int statusCode, Header[] headers, Throwable e, JSONObject response) {
+                Toast.makeText(MainActivity.this, "Unable to make request", Toast.LENGTH_SHORT).show();
+            }
+        });
 
 
+    }
+
+    private void updateUI(BitcoinModel bitcoinModel) {
+        mPriceTextView.setText(bitcoinModel.getLabel());
     }
 
 
